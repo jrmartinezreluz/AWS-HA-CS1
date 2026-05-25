@@ -1,152 +1,163 @@
-# AWS High Availability Architecture  
-**Author:** José Martinez | Arkhadia by GHC  
+# AWS High Availability Architecture
+
+**Author:** José Martinez | Arkhadia by GHC
 
 ---
 
-## 📘 Introduction
+## Introduction
 
 This project deploys a **High Availability (HA)** architecture on **Amazon Web Services (AWS)** using:
 
-- **Terraform** for Infrastructure as Code (IaC)  
-- **Ansible** for provisioning and server configuration  
+- **Terraform** for Infrastructure as Code (IaC)
+- **Ansible** for provisioning and server configuration (via **AWS Systems Manager**)
 
-The goal is to create a secure, scalable, and reproducible environment, aligned with enterprise-grade requirements.
-
----
-
-## 🎯 Objectives
-
-- Deploy a **highly available and secure** cloud architecture  
-- Automate the infrastructure and provisioning processes  
-- Separate application and database workloads  
-- Configure **monitoring and alerts** using Amazon CloudWatch  
+The goal is a secure, scalable, and reproducible environment aligned with enterprise-style practices.
 
 ---
 
-## ☁️ Services Used
+## Objectives
 
-- **Amazon VPC** (custom VPC with public and private subnets)  
-- **EC2 Auto Scaling Group** with Launch Template  
-- **Application Load Balancer (ALB)**  
-- **Amazon RDS (MySQL)** with Multi-AZ  
-- **Amazon CloudWatch** (metrics, logs, alarms)  
-- **IAM** roles with least privilege  
-- **Terraform** for infrastructure deployment  
-- **Ansible** for provisioning and Nginx configuration  
+- Deploy a highly available and secure cloud architecture
+- Automate infrastructure and application configuration
+- Separate application and database tiers
+- Configure monitoring and alerts with Amazon CloudWatch
 
 ---
 
-## 🚀 Deployment Phases
+## Services Used
 
-### Phase 1: Networking (VPC)
-- VPC CIDR: `10.0.0.0/16`
-- 2 public + 2 private subnets (AZ: `us-east-1a`, `us-east-1b`)
-- Internet Gateway, NAT Gateway, custom route tables
-
-### Phase 2: EC2 + Launch Template + Auto Scaling
-- Amazon Linux 2023 AMI
-- Launch Template with User Data
-- Auto Scaling Group in public subnets
-
-### Phase 3: Application Load Balancer (ALB)
-- ALB routing HTTP traffic
-- Integrated with Auto Scaling Group instances
-
-### Phase 4: RDS MySQL
-- Deployed in private subnets
-- Multi-AZ, automated backups, deletion protection
-- Connection tested from EC2 with MySQL CLI
-
-### Phase 5: CloudWatch
-- Alarms for CPU utilization thresholds
-- Enabled detailed monitoring
-
-### Phase 6: Ansible Provisioning
-- Inventory with EC2 public IPs
-- Bootstrap playbook to install Python 3
-- Installed and configured Nginx with a custom landing page
+| Service | Role |
+|---------|------|
+| Amazon VPC | Custom VPC, public/private subnets, IGW, NAT |
+| EC2 Auto Scaling | Launch template, ASG (private subnets) |
+| Application Load Balancer | HTTP traffic to the web tier |
+| Amazon RDS (MySQL) | Multi-AZ database in private subnets |
+| Amazon CloudWatch | CPU alarms for the ASG |
+| IAM | Instance profile (SSM + CloudWatch agent) |
+| Ansible + SSM | Nginx and bootstrap without SSH |
 
 ---
 
-## ⚠️ Issues Encountered & Solutions
+## Architecture
 
-| Issue                                           | Solution                                      |
-|------------------------------------------------|-----------------------------------------------|
-| Amazon Linux 2023 lacks Python                 | Used Ansible bootstrap playbook               |
-| Apt package errors                             | Switched to `dnf` package manager             |
-| File ownership errors with `www-data` user     | Changed ownership to `nginx`                 |
-| Nginx failed to start                          | Adjusted permissions and verified config      |
-| Terraform attempted to destroy resources       | Refined names and configurations              |
+```
+Internet → ALB (public subnets)
+              ↓
+         EC2 ASG (private subnets, 2–3 instances)
+              ↓
+         RDS MySQL Multi-AZ (private subnets)
 
----
+Ansible → SSM → EC2 (no public SSH required)
+```
 
-## ✅ Results
-
-- ✅ ALB routes traffic to EC2 instances
-- ✅ Custom Nginx webpage accessible via ALB DNS
-- ✅ RDS MySQL available from EC2, tested successfully
-- ✅ CloudWatch alarms functioning as expected
+- **VPC CIDR:** `10.0.0.0/16`
+- **Subnets:** 2 public + 2 private (`us-east-1a`, `us-east-1b`)
+- **Web tier:** Private subnets; HTTP only from ALB security group
+- **Database:** RDS ingress only from EC2 security group (port 3306)
 
 ---
 
-## 🧱 General Architecture Overview
+## Repository Layout
 
-- VPC with public/private subnets  
-- Internet Gateway & NAT Gateway  
-- Application Load Balancer  
-- Auto Scaling Group with EC2  
-- RDS MySQL (Multi-AZ)  
-- CloudWatch alarms and metrics  
-- Terraform modules for each component  
-- Ansible roles/playbooks for provisioning  
-
----
-
-## 📂 Terraform Modules
-
-- `vpc` – Custom networking  
-- `ec2` – Launch Template and ASG  
-- `alb` – Load balancer and target group  
-- `rds` – MySQL in private subnets  
-- `cloudwatch` – Monitoring and alarms  
+```
+aws_ha/
+└── aws/ha-arch/
+    ├── terraform/
+    │   ├── main.tf
+    │   ├── modules/vpc/
+    │   ├── modules/ec2/    # ASG, ALB, launch template, IAM
+    │   └── modules/rds/
+    └── ansible/
+        ├── inventory/hosts.ini
+        ├── playbooks/bootstrap-python.yml
+        ├── playbooks/webserver.yml
+        └── requirements.txt
+```
 
 ---
 
-## 🔧 Ansible Configuration
+## Prerequisites
 
-- `inventory.ini` – List of EC2 IPs  
-- `bootstrap.yml` – Python 3 setup on Amazon Linux 2023  
-- `nginx.yml` – Web server provisioning and configuration  
-
----
-
-## 📊 Monitoring: CloudWatch
-
-- CPU alarms for scaling thresholds  
-- Detailed monitoring from EC2 instances  
-- Log delivery enabled  
+- AWS CLI configured with appropriate credentials
+- Terraform >= 1.5
+- Python 3 + Ansible (see `ansible/requirements.txt`)
+- Existing EC2 key pair in the target region
+- S3 bucket for Ansible SSM (`ark-ansible-tmp` or update `ansible.cfg` / inventory)
 
 ---
 
-## 🧾 Conclusions
+## Deployment
 
-This project demonstrates the successful implementation of a **Highly Available AWS environment**, built from scratch and aligned with best practices in:
+### 1. Terraform
 
-- Infrastructure as Code (Terraform)  
-- Automated Configuration (Ansible)  
-- Security, scalability, and monitoring  
+```bash
+cd aws/ha-arch/terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars (key_name, project, etc.)
 
-The result is a robust and reproducible architecture ready for production or testing.
+export TF_VAR_db_username='admin'
+export TF_VAR_db_password='your-secure-password'
+
+terraform init
+terraform plan
+terraform apply
+```
+
+Note outputs: `alb_dns_name`, `asg_name`, `vpc_id`.
+
+### 2. Ansible
+
+```bash
+cd aws/ha-arch/ansible
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# Add instance IDs to inventory/hosts.ini (from ASG/EC2 console or CLI)
+ansible-playbook playbooks/bootstrap-python.yml
+ansible-playbook playbooks/webserver.yml
+```
+
+### 3. Verify
+
+- Open `http://<alb_dns_name>` in a browser (custom Nginx page)
+- Test RDS from an instance: `mysql -h <rds_endpoint> -u admin -p`
 
 ---
 
-## 📬 Contact
+## Terraform Modules
 
-We would love to hear from you:
+| Module | Responsibility |
+|--------|----------------|
+| `vpc` | VPC, subnets, IGW, NAT, routing |
+| `ec2` | IAM (SSM), ALB, target group, ASG, launch template |
+| `rds` | Subnet group, RDS MySQL, DB security group |
 
-- 📧 jmartinez@arkhadia.net  
-- 📱 +507 6363-6738  
-- 🌐 [@genialcorpholding](https://github.com/genialcorpholding)
+Root `cloudwatch.tf` defines a high-CPU alarm on the ASG.
 
 ---
 
+## Security Notes
+
+- Do **not** commit `terraform.tfvars`, `*.tfstate`, or passwords.
+- Use `TF_VAR_db_password` (or AWS Secrets Manager) for database credentials.
+- **Rotate** any password that was previously committed to git history.
+- EC2 instances accept HTTP **only** from the ALB security group.
+
+---
+
+## Issues Encountered (historical)
+
+| Issue | Solution |
+|-------|----------|
+| Amazon Linux 2023 lacks Python | Ansible bootstrap playbook + user_data |
+| Apt vs dnf | Use `dnf` on AL2023 |
+| `www-data` vs `nginx` user | Use `nginx` ownership in templates |
+| Double-encoded user_data | Single `base64encode` in launch template |
+| RDS wired to hardcoded subnet IDs | Use `module.vpc` outputs |
+
+---
+
+## Contact
+
+- jmartinez@arkhadia.net
+- [@genialcorpholding](https://github.com/genialcorpholding)

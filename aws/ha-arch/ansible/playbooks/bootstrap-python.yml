@@ -2,7 +2,7 @@
 - name: Instalar Python 3 en Amazon Linux 2023
   hosts: web
   gather_facts: false
-  connection: aws_ssm
+  connection: community.aws.aws_ssm
   become: true
   become_method: sudo
 

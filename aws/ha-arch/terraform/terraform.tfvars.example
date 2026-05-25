@@ -1,0 +1,21 @@
+project              = "ark"
+region               = "us-east-1"
+azs                  = ["us-east-1a", "us-east-1b"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
+key_name             = "your-aws-key-pair-name"
+
+# Set via environment: export TF_VAR_db_password='...'
+# db_username = "admin"
+# db_password = "change-me"
+
+db_instance_type        = "db.t3.micro"
+db_name                 = "arkdb"
+allocated_storage       = 20
+engine_version          = "8.0"
+multi_az                = true
+backup_retention_period = 7
+deletion_protection     = true
+
+enable_detailed_monitoring = true
+alarm_cpu_threshold        = 70

@@ -3,16 +3,18 @@
 *.tfstate
 *.tfstate.*
 crash.log
-*.log
-*.bak
-*.zip
-*.tar.gz
-.terraform.lock.hcl
+*.tfplan
+rdsplan
+terraform.tfvars
 
 # Ansible
+venv/
+.venv/
 *.retry
-*.inventory
+ansible.log
 
 # General
 *.DS_Store
 .env
+*.pem
+*.key

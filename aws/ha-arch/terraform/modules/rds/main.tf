@@ -1,24 +1,21 @@
-# Ubicación: modules/rds/main.tf
-
 resource "aws_db_subnet_group" "this" {
   name       = "${var.project}-rds-subnet-group"
   subnet_ids = var.db_subnet_ids
 
-  tags = {
-    Name = "${var.project}-rds-subnet-group"
-  }
+  tags = { Name = "${var.project}-rds-subnet-group" }
 }
 
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project}-rds-sg"
-  description = "Allow DB access"
+  description = "Allow MySQL from application tier"
   vpc_id      = var.vpc_id
 
   ingress {
-    from_port   = 3306
-    to_port     = 3306
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    description     = "MySQL from EC2"
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [var.ec2_security_group_id]
   }
 
   egress {
@@ -28,9 +25,7 @@ resource "aws_security_group" "rds_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name = "${var.project}-rds-sg"
-  }
+  tags = { Name = "${var.project}-rds-sg" }
 }
 
 resource "aws_db_instance" "this" {
@@ -47,9 +42,7 @@ resource "aws_db_instance" "this" {
   skip_final_snapshot     = true
   backup_retention_period = var.backup_retention_period
   multi_az                = var.multi_az
-  deletion_protection     = false
+  deletion_protection     = var.deletion_protection
 
-  tags = {
-    Name = "${var.project}-rds"
-  }
+  tags = { Name = "${var.project}-rds" }
 }

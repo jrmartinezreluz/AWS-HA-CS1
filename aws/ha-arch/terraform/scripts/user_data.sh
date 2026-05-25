@@ -1,6 +1,6 @@
 #!/bin/bash
-yum update -y
-yum install -y httpd
-systemctl start httpd
-systemctl enable httpd
-echo "Hello from $(hostname)" > /var/www/html/index.html
+set -euo pipefail
+
+# Bootstrap for Ansible over SSM (Nginx is configured by Ansible, not here).
+dnf install -y python3 amazon-ssm-agent
+systemctl enable --now amazon-ssm-agent
