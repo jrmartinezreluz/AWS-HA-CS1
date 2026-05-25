@@ -40,14 +40,35 @@ The goal is a secure, scalable, and reproducible environment aligned with enterp
 
 ## Architecture
 
-```
-Internet → ALB (public subnets)
-              ↓
-         EC2 ASG (private subnets, 2–3 instances)
-              ↓
-         RDS MySQL Multi-AZ (private subnets)
+Full diagrams (networking, security groups, traffic, deployment): **[docs/architecture.md](docs/architecture.md)**
 
-Ansible → SSM → EC2 (no public SSH required)
+```mermaid
+flowchart TB
+    Users[Users]
+
+    subgraph VPC["VPC 10.0.0.0/16"]
+        IGW[Internet Gateway]
+        NAT[NAT Gateway]
+
+        subgraph Public["Public subnets — us-east-1a / 1b"]
+            ALB[Application Load Balancer<br/>HTTP :80]
+        end
+
+        subgraph Private["Private subnets — us-east-1a / 1b"]
+            ASG[EC2 Auto Scaling Group<br/>2–3 instances — Nginx]
+            RDS[(RDS MySQL Multi-AZ)]
+        end
+
+        CW[CloudWatch CPU alarm]
+    end
+
+    Admin[Admin — Ansible SSM] -.-> ASG
+
+    Users -->|HTTP| IGW --> ALB
+    ALB -->|:80| ASG
+    ASG -->|outbound| NAT --> IGW
+    ASG -->|MySQL :3306| RDS
+    CW -.-> ASG
 ```
 
 - **VPC CIDR:** `10.0.0.0/16`
@@ -60,7 +81,9 @@ Ansible → SSM → EC2 (no public SSH required)
 ## Repository Layout
 
 ```
-aws_ha/
+AWS-HA-CS1/
+├── docs/
+│   └── architecture.md  # Mermaid diagrams (detailed)
 └── aws/ha-arch/
     ├── terraform/
     │   ├── main.tf
